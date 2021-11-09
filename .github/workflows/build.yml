@@ -1,0 +1,130 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      algolia_app_id:
+        required: true
+        type: string
+      algolia_index_name:
+        required: true
+        type: string
+      disable_auth:
+        required: false
+        type: boolean
+        default: false
+      docs_site_owner:
+        required: false
+        type: string
+        default: dequelabs
+      docs_site_repo:
+        required: true
+        type: string
+      keycloak_client_role_access_all:
+        required: false
+        type: string
+        default: user
+      keycloak_config:
+        required: false
+        type: string
+        default: production
+      link_images:
+        required: false
+        type: boolean
+        default: true
+      product_id:
+        required: true
+        type: string
+      registry_scope:
+        required: true
+        type: string
+      registry_path:
+        required: true
+        type: string
+      restricted_access_help_email:
+        required: false
+        type: string
+        default: helpdesk@deque.com
+    secrets:
+      agora_email:
+        required: true
+      agora_token:
+        required: true
+      algolia_read_api_key:
+        required: true
+      github_pat:
+        required: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout content repository
+        uses: actions/checkout@v2
+      
+      - name: Checkout site repository
+        uses: actions/checkout@v2
+        with:
+          repository: ${{ inputs.docs_site_owner }}/${{ inputs.docs_site_repo }}
+          token: ${{ secrets.github_pat }}
+          path: ${{ inputs.docs_site_repo }}
+
+      - name: Cache dependencies
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ inputs.docs_site_repo }}/node_modules
+          key: ${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Setup node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14
+
+      - name: Configure registry
+        env:
+          REGISTRY_SCOPE: ${{ inputs.registry_scope }}
+          REGISTRY_PATH: ${{ inputs.registry_path }}
+          AGORA_EMAIL: ${{ secrets.agora_email }}
+          AGORA_TOKEN: ${{ secrets.agora_token }}
+        run: |
+          npm config set $REGISTRY_SCOPE:registry https://$REGISTRY_PATH
+          npm config set //$REGISTRY_PATH:email $AGORA_EMAIL
+          npm config set //$REGISTRY_PATH:_auth $AGORA_TOKEN
+          npm config set //$REGISTRY_PATH:always-auth true
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: ${{ inputs.docs_site_repo }}
+        run: yarn
+
+      - name: Overwrite content dependency with local content
+        working-directory: ${{ inputs.docs_site_repo }}
+        env:
+          CONTENT_DIR: ./node_modules/${{ inputs.registry_scope }}/docs-${{ inputs.product_id }}/content/
+        run: |
+          rm -r $CONTENT_DIR
+          cp -r ../content/ $CONTENT_DIR
+
+      - name: Build site
+        working-directory: ${{ inputs.docs_site_repo }}
+        env:
+          ALGOLIA_API_KEY: ${{ secrets.algolia_read_api_key }}
+          ALGOLIA_APP_ID: ${{ inputs.algolia_app_id }}
+          ALGOLIA_INDEX_NAME: ${{ inputs.algolia_index_name }}
+          DISABLE_AUTH: ${{ inputs.disable_auth }}
+          KEYCLOAK_CLIENT_ROLE_ACCESS_ALL: ${{ inputs.keycloak_client_role_access_all }}
+          KEYCLOAK_CONFIG: ${{ inputs.keycloak_config }}
+          LINK_IMAGES: ${{ inputs.link_images }}
+          PRODUCTS: ${{ inputs.product_id }}
+          RESTRICTED_ACCESS_HELP_EMAIL: ${{ inputs.restricted_access_help_email }}
+        run: yarn build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ inputs.docs_site_repo }}_public
+          path: ${{ inputs.docs_site_repo }}/public
+          retention-days: 1
