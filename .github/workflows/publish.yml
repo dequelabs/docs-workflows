@@ -8,8 +8,9 @@ on:
         type: boolean
         default: false
       package_scope:
-        required: true
+        required: false
         type: string
+        default: '@deque'
       registry_url:
         required: true
         type: string
@@ -25,6 +26,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Install jq
+        run: sudo apt-get install jq
+
+      - name: Setup node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14
+
       - name: Configure npm
         run: |
           npm config set ${{ inputs.package_scope }}:registry ${{ inputs.registry_url }}
@@ -32,14 +47,20 @@ jobs:
           npm config set _auth ${{ secrets.agora_token }}
           npm config set always-auth true
 
-      - name: Create canary package
+      - name: Rewrite canary package.json
         if: ${{ inputs.canary == true }}
-        run: node .github/scripts/canary-version
-        
-      - name: Publish canary
-        if: ${{ inputs.canary == true }}
-        run: npm publish --tag=next
+        # if $GITHUB_SHA is not set, this will fail with the following error:
+        # "sed: first RE may not be empty"
+        run: |
+          version=`jq -r .version package.json`
+          data=`sed "s/$version/$version-${GITHUB_SHA:0:8}/g" package.json`
+          echo $data > package.json
 
       - name: Publish
-        if: ${{ inputs.canary == false }}
-        run: npm publish
+        run: |
+          if [ ${{ inputs.canary }} = true ]
+          then
+            npm publish --tag=next
+          else
+            npm publish
+          fi
