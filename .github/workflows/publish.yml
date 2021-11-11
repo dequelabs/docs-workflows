@@ -53,13 +53,12 @@ jobs:
           if [ ${{ inputs.canary }} = true ]
           then
             new_version=${GITHUB_SHA:0:8}
-            new_manifest=`sed "s/$version/$version-$new_version/g" package.json`
+            sed -i "s/$version/$version-$new_version/g" package.json
           else
             tag=${GITHUB_REF/refs\/tags\//}
             new_version=${tag/v/}
-            new_manifest=`sed "s/$version/$new_version/g" package.json`
+            sed -i "s/$version/$new_version/g" package.json
           fi
-          echo $new_manifest > package.json
 
       - name: Publish
         run: |
@@ -69,3 +68,13 @@ jobs:
           else
             npm publish
           fi
+
+      - run: git branch
+
+      - name: Commit version change to repo
+        run: |
+          git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git config --global user.name "$GITHUB_ACTOR"
+          git checkout master
+          git commit -am "chore: update package version" || true
+          git push
