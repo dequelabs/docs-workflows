@@ -47,14 +47,19 @@ jobs:
           npm config set _auth ${{ secrets.agora_token }}
           npm config set always-auth true
 
-      - name: Rewrite canary package.json
-        if: ${{ inputs.canary == true }}
-        # if $GITHUB_SHA is not set, this will fail with the following error:
-        # "sed: first RE may not be empty"
+      - name: Update package version
         run: |
           version=`jq -r .version package.json`
-          data=`sed "s/$version/$version-${GITHUB_SHA:0:8}/g" package.json`
-          echo $data > package.json
+          if [ ${{ inputs.canary }} = true ]
+          then
+            new_version=${GITHUB_SHA:0:8}
+            new_manifest=`sed "s/$version/$version-$new_version/g" package.json`
+          else
+            tag=${GITHUB_REF/refs\/tags\//}
+            new_version=${tag/v/}
+            new_manifest=`sed "s/$version/$new_version/g" package.json`
+          fi
+          echo $new_manifest > package.json
 
       - name: Publish
         run: |
