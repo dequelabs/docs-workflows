@@ -6,14 +6,6 @@ on:
       docs_site_repo:
         required: true
         type: string
-      product_id:
-        required: true
-        type: string
-    secrets:
-      netlify_site_id:
-        required: true
-      netlify_auth_token:
-        required: true
 
 jobs:
   deploy:
@@ -33,41 +25,5 @@ jobs:
 
       - name: Deploy
         working-directory: ${{ inputs.docs_site_repo }}
-        env:
-          NETLIFY_SITE_ID: ${{ secrets.netlify_site_id }}
-          NETLIFY_AUTH_TOKEN: ${{ secrets.netlify_auth_token }}
         run: |
-          netlify deploy \
-            --dir=public \
-            --message=${{ inputs.product_id }}\ \(${{ github.ref }}\) \
-            --json \
-            > $DEPLOYMENT_JSON
-
-      - name: Read deploy URL
-        id: read_deploy_url
-        uses: notiz-dev/github-action-json-property@release
-        with:
-          path: ${{ inputs.docs_site_repo }}/${{ env.DEPLOYMENT_JSON }}
-          prop_path: deploy_url
-
-      - name: Initialize status check
-        uses: Sibz/github-status-action@v1.1.1
-        with:
-          authToken: ${{ secrets.GITHUB_TOKEN }}
-          context: Preview site
-          state: pending
-          target_url: ${{ steps.read_deploy_url.outputs.prop }}
-
-  report:
-    name: Report status
-    runs-on: ubuntu-latest
-    needs: deploy
-
-    steps:
-      - name: Update status check
-        uses: Sibz/github-status-action@v1.1.1
-        with:
-          authToken: ${{ secrets.GITHUB_TOKEN }}
-          context: Preview site
-          state: success
-          target_url: ${{ needs.deploy.outputs.deploy_url }}
+          echo Deploy preview site - stub
