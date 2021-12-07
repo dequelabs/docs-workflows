@@ -71,6 +71,7 @@ jobs:
 
       - run: git branch
 
+      # Refactor needed: Version bump in package.json should occur before git tagging
       - name: Commit version change to repo
         run: |
           git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"
