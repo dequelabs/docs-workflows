@@ -24,6 +24,8 @@ jobs:
   publish_job:
     name: Publish
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.ref_name }}
 
     steps:
       - name: Checkout repository
@@ -48,17 +50,28 @@ jobs:
           npm config set always-auth true
 
       - name: Update package version
+        if: ${{ github.ref_type == 'tag' }}
         run: |
           version=`jq -r .version package.json`
           if [ ${{ inputs.canary }} = true ]
           then
-            new_version=${GITHUB_SHA:0:8}
-            sed -i "s/$version/$version-$new_version/g" package.json
+            sha=${GITHUB_SHA:0:8}
+            sed -i "s/$version/$version-$sha/g" package.json
           else
-            tag=${GITHUB_REF/refs\/tags\//}
-            new_version=${tag/v/}
+            new_version=${TAG/v/}
             sed -i "s/$version/$new_version/g" package.json
           fi
+
+      - name: Commit version change to repo
+        if: ${{ github.ref_type == 'tag' && inputs.canary == false }}
+        run: |
+          git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git config --global user.name "$GITHUB_ACTOR"
+          git checkout master
+          git commit -am "chore: update package version"
+          last_commit=`git rev-parse HEAD`
+          git tag --force $TAG $last_commit
+          git push --force --tags
 
       - name: Publish
         run: |
@@ -68,14 +81,3 @@ jobs:
           else
             npm publish
           fi
-
-      - run: git branch
-
-      # Refactor needed: Version bump in package.json should occur before git tagging
-      - name: Commit version change to repo
-        run: |
-          git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"
-          git config --global user.name "$GITHUB_ACTOR"
-          git checkout master
-          git commit -am "chore: update package version" || true
-          git push
