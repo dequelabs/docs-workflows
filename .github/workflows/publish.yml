@@ -62,6 +62,9 @@ jobs:
             sed -i "s/$version/$new_version/g" package.json
           fi
 
+      # The `git commit` command will fail if no changes are present.
+      # This intentionally prevents publishing multiple package versions
+      # with the same `version` property value in `package.json`.
       - name: Commit version change to repo
         if: ${{ github.ref_type == 'tag' && inputs.canary == false }}
         run: |
