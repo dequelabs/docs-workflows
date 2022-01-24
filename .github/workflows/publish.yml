@@ -72,6 +72,7 @@ jobs:
           last_commit=`git rev-parse HEAD`
           git tag --force $TAG $last_commit
           git push --force --tags
+          git push --force --all
 
       - name: Publish
         run: |
