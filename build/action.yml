@@ -1,0 +1,54 @@
+name: Build
+description: Build the docs site with content from this branch
+
+inputs:
+  docs_site_repo:
+    required: true
+    type: string
+  product:
+    required: true
+    type: string
+  registry_scope:
+    required: true
+    type: string
+  registry_url:
+    required: true
+    type: string
+
+runs:
+  using: composite
+  steps:
+
+    - name: Clone docs site
+      shell: bash
+      run: git clone https://${{ github.actor }}:${{ github.token }}@github.com/dequelabs/${{ inputs.docs_site_repo }}
+
+    - name: Configure npm
+      shell: bash
+      run: |
+        npm config set ${{ inputs.registry_scope }}:registry ${{ inputs.registry_url }}
+        npm config set email ${{ secrets.agora_email }}
+        npm config set _auth ${{ secrets.agora_token }}
+        npm config set always-auth true
+
+    - name: Build docs site
+      shell: bash
+      run: |
+        cd ${{ inputs.docs_site_repo }}
+        yarn
+
+    - name: Overwrite content module with branch's content changes
+      shell: bash
+      run: |
+        CONTENT_DIR=./node_modules/${{ inputs.registry_scope }}/docs-$PRODUCTS/content/
+        PARTIALS_DIR=./node_modules/${{ inputs.registry_scope }}/docs-$PRODUCTS/partials/
+        rm -r $CONTENT_DIR
+        cp -r ../content/ $CONTENT_DIR
+        if [ -d $PARTIALS_DIR ]; then rm -r $PARTIALS_DIR; fi
+        if [ -d ../partials/ ]; then cp -r ../partials/ $PARTIALS_DIR; fi
+
+    - name: Build site
+      shell: bash
+      run: |
+        PRODUCTS=${{ inputs.product }} yarn build
+        cp -r public ..

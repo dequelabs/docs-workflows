@@ -1,0 +1,61 @@
+name: Push
+
+on:
+  workflow_call:
+    inputs:
+      docs_site_repo:
+        required: true
+        type: string
+      product:
+        required: true
+        type: string
+      registry_scope:
+        required: true
+        type: string
+      registry_url:
+        required: true
+        type: string
+    secrets:
+      agora_email:
+        required: true
+      agora_token:
+        required: true
+
+jobs:
+  validate_links:
+    name: Validate links
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - run: echo $PWD
+
+      - name: Build site
+        uses: dequelabs/docs-workflows/build@feat/validate-links
+        with:
+          docs_site_repo: ${{ inputs.docs_site_repo }}
+          product: ${{ inputs.product }}
+          registry_scope: ${{ inputs.registry_scope }}
+          registry_url: ${{ inputs.registry_url }}
+        secrets:
+          agora_email: ${{ secrets.AGORA_EMAIL }}
+          agora_token: ${{ secrets.AGORA_TOKEN }}
+
+      - name: Run linkinator
+        uses: JustinBeckwith/linkinator-action@v1
+        with:
+          paths: public
+          concurrency: 100
+          recurse: true
+          skip:
+            agora.dequecloud.com
+            axe-linter.deque.com
+            support.deque.com
+          timeout: 0
+          markdown: false
+          directoryListing: true
+          verbosity: NONE
