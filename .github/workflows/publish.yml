@@ -14,6 +14,10 @@ on:
       registry_url:
         required: true
         type: string
+      release_branch:
+        required: false
+        type: string
+        default: master
     secrets:
       agora_email:
         required: true
@@ -70,7 +74,7 @@ jobs:
         run: |
           git config --global user.email "$GITHUB_ACTOR@users.noreply.github.com"
           git config --global user.name "$GITHUB_ACTOR"
-          git checkout master
+          git checkout ${{ inputs.release_branch }}
           git commit -am "chore: update package version"
           last_commit=`git rev-parse HEAD`
           git tag --force $TAG $last_commit
