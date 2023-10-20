@@ -53,6 +53,9 @@ jobs:
           npm config set _auth ${{ secrets.agora_token }}
           npm config set always-auth true
 
+      - name: Echo ref type
+        run: echo "Ref type is ${{ github.ref_type }}"
+
       - name: Update package version
         if: ${{ github.ref_type == 'tag' }}
         run: |
