@@ -27,6 +27,7 @@ on:
 jobs:
   publish_job:
     name: Publish
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.ref_name }}
